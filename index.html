@@ -411,39 +411,10 @@
                 "4c13b89593dd53dea599d536b306528e":"36a170e30a62bae6ec4af300992015c2"
                 }
             };
-            let cookieHeader = "__hdnea__=st=1750159300~exp=1750245700~acl=/*~hmac=dc9aefe01d42aec99a9cf17876cc0bc115ce2a38f69131a022c2a0f0563a9487";
+            
             let streamUrl = "https://jiotvmblive.cdn.jio.com/bpk-tv/Sidharth_TV_BTS/output/index.mpd";
 
-            try {
-                const response = await fetch('https://raw.githubusercontent.com/alex4528/m3u/refs/heads/main/jstar.m3u');
-                const m3uText = await response.text();
-                const lines = m3uText.split('\n');
-
-                for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].includes('Sidharth_TV')) {
-                        const clearKeyLine = lines[i + 1];
-                        const clearKeyMatch = clearKeyLine.match(/license_key=([^:]+):([a-f0-9]+)/);
-                        if (clearKeyMatch)   
-  
-{ drmConfig.clearKeys = {
-                                [clearKeyMatch[1]]: clearKeyMatch[2]
-                            };
-                        }
-                        const cookieLine = lines.find(line => line.startsWith('#EXTHTTP:'));
-                        const cookieMatch = cookieLine.match(/"cookie":"([^"]+)"/);
-                        if (cookieMatch) {
-                            cookieHeader = cookieMatch[1];
-                        }
-                        const urlLine = lines.find(line => line.includes('Sidharth_TV') && line.includes('.mpd'));
-                        if (urlLine) {
-                            streamUrl = urlLine.split('&xxx=')[0];
-                        }
-                        break;
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch M3U:', error);
-            }
+             
 
             player.configure({
                 drm: drmConfig,
@@ -470,74 +441,7 @@
                 }
             });
 
-            player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                request.headers['Referer'] = 'https://www.jiotv.com/';
-                request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
-                request.headers['Cookie'] = cookieHeader;
-
-                if ((type === shaka.net.NetworkingEngine.RequestType.MANIFEST ||
-                     type === shaka.net.NetworkingEngine.RequestType.SEGMENT) &&
-                    !request.uris[0].includes('__hdnea__=')) {
-                    const separator = request.uris[0].includes('?') ? '&' : '?';
-                    request.uris[0] += separator + cookieHeader;
-                }
-            });
-
-            const enableAutoplay = () => {
-                video.setAttribute('autoplay', '');
-                video.setAttribute('playsinline', '');
-                video.autoplay = true;
-            };
-
-            const attemptAutoplay = async () => {
-                try {
-                    video.muted = false;
-                    await video.play();
-                    console.log('Unmuted autoplay successful');
-                    return true;
-                } catch (error) {
-                    console.log('Unmuted autoplay failed:', error.message);
-                    try {
-                        video.muted = true;
-                        await video.play();
-                        console.log('Muted autoplay successful');
-                        return true;
-                    } catch (mutedError) {
-                        console.log('Muted autoplay failed:', mutedError.message);
-                        return false;
-                    }
-                }
-            };
-
-            player.addEventListener('error', (event) => {
-                console.error('Shaka Player Error:', event.detail);
-            });
-
-            video.addEventListener('play', () => {
-                if (window.self === window.top && !document.fullscreenElement && window.innerWidth <= 768) {
-                    container.requestFullscreen().catch(() => {
-                        console.log('Fullscreen request failed');
-                    });
-                }
-            }, { once: true });
-
-            video.addEventListener('loadedmetadata', () => {
-                video.volume = 0.8;
-            });
-
-            let hasUserInteracted = false;
-            const enableSoundOnInteraction = () => {
-                if (!hasUserInteracted && video.muted) {
-                    video.muted = false;
-                    hasUserInteracted = true;
-                    console.log('Sound enabled after user interaction');
-                }
-            };
-            ['click', 'touchstart', 'keydown'].forEach(event => {
-                document.addEventListener(event, enableSoundOnInteraction, { once: true });
-            });
-
-            try {
+    try {
                 enableAutoplay();
                 await player.load(streamUrl);
                 if (video.readyState >= 3) {
