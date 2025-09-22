@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DPlayer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dplayer@1.26.0/dist/DPlayer.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    #dplayer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .dplayer-video-normal { object-fit: contain !important; }
+    .dplayer-video-zoomed { object-fit: cover !important; }
+
+    .dplayer-icons-right .dplayer-zoom,
+    .dplayer-icons-right .dplayer-quality {
+      display: inline-block;
+      width: 40px;
+      height: 100%;
+      text-align: center;
+      cursor: pointer;
+      vertical-align: middle;
+      color: #fff;
+      position: relative;
+      margin-right: 4px;
+    }
+
+    .dplayer-icons-right .dplayer-zoom:hover,
+    .dplayer-icons-right .dplayer-quality:hover {
+      color: #b7daff;
+    }
+
+    .dplayer-icons-right .dplayer-zoom svg,
+    .dplayer-icons-right .dplayer-quality svg {
+      width: 20px;
+      height: 20px;
+      margin-top: 10px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .dplayer-quality-menu {
+      position: absolute;
+      right: 0;
+      bottom: 50px;
+      background: rgba(28, 28, 28, 0.9);
+      border-radius: 2px;
+      padding: 5px 0;
+      display: none;
+      min-width: 100px;
+      z-index: 100;
+    }
+
+    .dplayer-quality-menu.show { display: block; }
+
+    .dplayer-quality-menu-item {
+      padding: 5px 15px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .dplayer-quality-menu-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .dplayer-quality-menu-item.active {
+      color: #b7daff;
+    }
+  </style>
+</head>
+<body>
+  <div id="dplayer"></div>
+
+  <script>
+    let dp, zoomed = false, currentQuality = '1080p', sources = {};
+
+    const qualityMap = {
+      '240': '240p',
+      '360': '360p',
+      '480': '480p',
+      '540': '540p',
+      '720': '720p',
+      '1080': '1080p'
+    };
+
+    const zoomSVG = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15 4V7C15 8.1 15.9 9 17 9H20M9 4V7C9 8.1 8.1 9 7 9H4M15 20V17C15 15.9 15.9 15 17 15H20M9 20V17C9 15.9 8.1 15 7 15H4"/>
+      </svg>
+    `;
+
+    const qualitySVG = `
+      <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <path d="M28 6L4 6M28 16L4 16M28 26L4 26M24 3L24 9M8 13L8 19M20 23L20 29"/>
+      </svg>
+    `;
+
+    async function loadMasterPlaylist(url) {
+      try {
+        const res = await fetch(url);
+        const text = await res.text();
+        const lines = text.split('\n');
+
+        sources = { 'Auto': url };
+
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].startsWith('#EXT-X-STREAM-INF')) {
+            const resolutionMatch = lines[i].match(/RESOLUTION=(\d+)x(\d+)/);
+            const nextLine = lines[i + 1];
+            if (resolutionMatch && nextLine && nextLine.startsWith('http')) {
+              const height = resolutionMatch[2];
+              const label = qualityMap[height] || `${height}p`;
+              sources[label] = nextLine.trim();
+            }
+          }
+        }
+
+        if (Object.keys(sources).length === 0) throw new Error("No streams found.");
+
+        if (sources['720p']) {
+          currentQuality = '720p';
+        } else {
+          currentQuality = Object.keys(sources)[0];
+        }
+
+        initPlayer(sources[currentQuality]);
+
+        setTimeout(() => {
+          if (dp && dp.video) {
+            dp.video.muted = false;
+            dp.video.volume = 1;
+          }
+        }, 800);
+
+      } catch (err) {
+        alert(`Error loading stream: ${err.message}`);
+      }
+    }
+
+    function initPlayer(url) {
+      if (dp) dp.destroy();
+      dp = new DPlayer({
+        container: document.getElementById('dplayer'),
+        autoplay: true,
+        video: {
+          url,
+          type: 'hls',
+          pic: "https://webiptv.updatesbyrahul.site/weiptv.webp"
+        },
+        theme: '#b7daff'
+      });
+
+      dp.video.classList.add('dplayer-video-normal');
+      setTimeout(addCustomControls, 500);
+    }
+
+    function addCustomControls() {
+      const controls = document.querySelector(".dplayer-icons-right");
+      if (!controls) return setTimeout(addCustomControls, 100);
+
+      ['.dplayer-zoom', '.dplayer-quality'].forEach(sel => {
+        const el = controls.querySelector(sel);
+        if (el) el.remove();
+      });
+
+      const zoomBtn = document.createElement('div');
+      zoomBtn.className = 'dplayer-zoom';
+      zoomBtn.title = 'Zoom';
+      zoomBtn.innerHTML = zoomSVG;
+      zoomBtn.onclick = () => {
+        zoomed = !zoomed;
+        dp.video.classList.toggle('dplayer-video-zoomed', zoomed);
+        dp.video.classList.toggle('dplayer-video-normal', !zoomed);
+      };
+
+      if (Object.keys(sources).length > 1) {
+        const qualityBtn = document.createElement('div');
+        qualityBtn.className = 'dplayer-quality';
+        qualityBtn.title = 'Quality';
+        qualityBtn.innerHTML = `${qualitySVG}<div class="dplayer-quality-menu"></div>`;
+
+        const menu = qualityBtn.querySelector('.dplayer-quality-menu');
+
+        Object.keys(sources).sort((a, b) => {
+          if (a === 'Auto') return 1;
+          if (b === 'Auto') return -1;
+          return parseInt(a) - parseInt(b);
+        }).forEach(q => {
+          const item = document.createElement('div');
+          item.className = `dplayer-quality-menu-item${q === currentQuality ? ' active' : ''}`;
+          item.textContent = q;
+          item.onclick = () => {
+            if (q !== currentQuality) {
+              const time = dp.video.currentTime;
+              currentQuality = q;
+              initPlayer(sources[q]);
+              dp.on('loadeddata', () => dp.seek(time));
+            }
+            menu.classList.remove('show');
+          };
+          menu.appendChild(item);
+        });
+
+        qualityBtn.onclick = (e) => {
+          e.stopPropagation();
+          menu.classList.toggle('show');
+          setTimeout(() => {
+            const close = (e) => {
+              if (!qualityBtn.contains(e.target)) {
+                menu.classList.remove('show');
+                document.removeEventListener('click', close);
+              }
+            };
+            document.addEventListener('click', close);
+          }, 0);
+        };
+
+        const settingsBtn = controls.querySelector('.dplayer-setting');
+        if (settingsBtn) {
+          controls.insertBefore(qualityBtn, settingsBtn);
+          controls.insertBefore(zoomBtn, settingsBtn);
+        } else {
+          controls.prepend(qualityBtn);
+          controls.prepend(zoomBtn);
+        }
+      } else {
+        const settingsBtn = controls.querySelector('.dplayer-setting');
+        if (settingsBtn) {
+          controls.insertBefore(zoomBtn, settingsBtn);
+        } else {
+          controls.prepend(zoomBtn);
+        }
+      }
+    }
+
+    const streamUrl = new URLSearchParams(window.location.search).get('url');
+    if (streamUrl) {
+      loadMasterPlaylist(streamUrl);
+    } else {
+      alert("No stream URL provided. Use ?url=...");
+    }
+  </script>
+</body>
+</html>
