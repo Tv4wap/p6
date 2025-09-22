@@ -101,7 +101,7 @@ function getUrlParam(name) {
             return null; 
         }
 
-        var url = getUrlParam('url');
+        var streamUrl = getUrlParam('url');
 
     
     let dp, zoomed = false, currentQuality = '1080p', sources = {};
@@ -270,9 +270,7 @@ function getUrlParam(name) {
     const streamUrl = new URLSearchParams(window.location.search).get('url');
     if (streamUrl) {
       loadMasterPlaylist(streamUrl);
-    } else {
-      alert("");
-    }
+    } 
   </script>
 </body>
 </html>
