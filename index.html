@@ -94,6 +94,16 @@
   <div id="dplayer"></div>
 
   <script>
+function getUrlParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)"); 
+            var r = window.location.search.substr(1).match(reg);
+            if (r != null) return unescape(r[2]);
+            return null; 
+        }
+
+        var url = getUrlParam('url');
+
+    
     let dp, zoomed = false, currentQuality = '1080p', sources = {};
 
     const qualityMap = {
@@ -261,7 +271,7 @@
     if (streamUrl) {
       loadMasterPlaylist(streamUrl);
     } else {
-      alert("No stream URL provided. Use ?url=...");
+      alert("");
     }
   </script>
 </body>
